@@ -185,6 +185,41 @@ body { min-height: 100vh; }
 .conj-edit-row .pronoun { font-family: "Georgia", serif; font-size: 13px; color: var(--text-soft); font-weight: 600; direction: ltr; }
 .conj-edit-row .form-input { margin: 0; padding: 9px 11px; font-size: 14px; }
 
+/* ===== Single form editor for passato_prossimo ===== */
+.conj-single-row { display: flex; flex-direction: column; gap: 6px; }
+.conj-single-label { font-size: 12px; font-weight: 700; color: var(--text-soft); }
+.conj-single-input {
+  margin: 0 !important;
+  font-family: "Georgia", serif !important;
+  font-size: 17px !important;
+  font-weight: 700;
+  text-align: center !important;
+  letter-spacing: .3px;
+}
+.conj-uniform-hint {
+  font-size: 11.5px;
+  color: #a76b0f;
+  font-weight: 700;
+  padding: 7px 10px;
+  background: var(--warn-soft);
+  border-radius: 8px;
+  border: 1px solid #f1d9a3;
+  line-height: 1.5;
+}
+.conj-single-display {
+  margin: 8px 12px 10px;
+  padding: 14px 12px;
+  background: linear-gradient(135deg, #f1faf6, #fff);
+  border: 1px solid #d5ebe4;
+  border-radius: 10px;
+  font-family: "Georgia", serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  text-align: center;
+  letter-spacing: .3px;
+}
+
 .verb-item {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 12px 14px; background: var(--surface-2);
@@ -294,6 +329,7 @@ body { min-height: 100vh; }
 .tense-checkbox-content { flex: 1; min-width: 0; }
 .tense-checkbox-label { font-size: 13.5px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .tense-checkbox .lock-badge { font-size: 9.5px; padding: 1px 6px; background: var(--success-soft); color: var(--success); border-radius: 4px; font-weight: 800; }
+.tense-checkbox .one-word-badge { font-size: 9.5px; padding: 1px 6px; background: var(--purple-soft); color: var(--purple); border-radius: 4px; font-weight: 800; }
 .verb-prompt-preview-label {
   font-size: 12.5px; font-weight: 800; color: var(--purple);
   margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
@@ -458,6 +494,9 @@ body { min-height: 100vh; }
           <li>الصق ناتج JSON في المربع أدناه.</li>
           <li>راجع المعاينة → اضغط "رفع إلى السحابة".</li>
         </ol>
+        <p style="margin-top:8px;padding:8px 10px;background:#faf6ff;border:1px solid #e0d5f5;border-radius:8px;font-size:12.5px;color:#6938b8;font-weight:700;">
+          💡 زمن الماضي التام (passato prossimo) يُسجَّل بكلمة واحدة فقط (اسم المفعول) — نفس الكلمة لجميع الضمائر.
+        </p>
       </div>
 
       <div class="card">
@@ -538,7 +577,7 @@ body { min-height: 100vh; }
         <label class="tense-checkbox">
           <input type="checkbox" id="chkPassato" />
           <div class="tense-checkbox-content">
-            <div class="tense-checkbox-label"><span>⏳ الماضي القريب (passato prossimo)</span></div>
+            <div class="tense-checkbox-label"><span>⏳ الماضي التام (passato prossimo)</span><span class="one-word-badge">كلمة واحدة</span></div>
           </div>
         </label>
         <label class="tense-checkbox">
@@ -614,12 +653,13 @@ body { min-height: 100vh; }
 
   const TENSE_ORDER = ['presente', 'passato_prossimo', 'imperfetto', 'futuro'];
   const TENSES = {
-    presente:         { label: 'المضارع',       nameIt: 'presente',         required: true  },
-    passato_prossimo: { label: 'الماضي القريب', nameIt: 'passato prossimo', required: false },
+    presente:         { label: 'المضارع',        nameIt: 'presente',         required: true  },
+    passato_prossimo: { label: 'الماضي التام',   nameIt: 'passato prossimo', required: false, singleForm: true },
     imperfetto:       { label: 'الماضي المستمر', nameIt: 'imperfetto',       required: false },
     futuro:           { label: 'المستقبل',       nameIt: 'futuro semplice',  required: false }
   };
   const PRONOUNS = ['io', 'tu', 'lui', 'noi', 'voi', 'loro'];
+  const SINGLE_FORM_TENSES = ['passato_prossimo'];
 
   /* =========================================================
      State
@@ -639,6 +679,13 @@ body { min-height: 100vh; }
 
   function normalizeKey(s) {
     return String(s || '').toLowerCase().trim();
+  }
+
+  // هل التصريفات كلها نفس الكلمة؟
+  function isUniformForms(forms) {
+    if (!forms) return false;
+    const vals = PRONOUNS.map(p => String(forms[p] || '').trim());
+    return !!vals[0] && vals.every(v => v === vals[0]);
   }
 
   let toastTimer = null;
@@ -661,12 +708,12 @@ body { min-height: 100vh; }
   function buildVerbPrompt(opts) {
     const tenseLines = [];
     tenseLines.push('   - المضارع (presente) — إلزامي دائمًا.');
-    if (opts.passato)    tenseLines.push('   - الماضي القريب (passato_prossimo) — مع الفعل المساعد avere/essere.');
+    if (opts.passato)    tenseLines.push('   - الماضي التام (passato_prossimo) — كلمة واحدة فقط (participio passato)، مثال: "parlato" — نفس الكلمة تُستخدم مع جميع الضمائر (io, tu, lui, noi, voi, loro).');
     if (opts.imperfetto) tenseLines.push('   - الماضي المستمر (imperfetto).');
     if (opts.futuro)     tenseLines.push('   - المستقبل البسيط (futuro semplice).');
 
     const exampleTenses = ['"presente": { "io": "parlo", "tu": "parli", "lui": "parla", "noi": "parliamo", "voi": "parlate", "loro": "parlano" }'];
-    if (opts.passato)    exampleTenses.push('"passato_prossimo": { "io": "ho parlato", "tu": "hai parlato", "lui": "ha parlato", "noi": "abbiamo parlato", "voi": "avete parlato", "loro": "hanno parlato" }');
+    if (opts.passato)    exampleTenses.push('"passato_prossimo": "parlato"');
     if (opts.imperfetto) exampleTenses.push('"imperfetto": { "io": "parlavo", "tu": "parlavi", "lui": "parlava", "noi": "parlavamo", "voi": "parlavate", "loro": "parlavano" }');
     if (opts.futuro)     exampleTenses.push('"futuro": { "io": "parlerò", "tu": "parlerai", "lui": "parlerà", "noi": "parleremo", "voi": "parlerete", "loro": "parleranno" }');
 
@@ -684,10 +731,15 @@ ${tenseLines.join('\n')}
 3. لكل زمن، التصريفات الكاملة مع 6 ضمائر:
    io, tu, lui, noi, voi, loro
 
-4. للأفعال الانعكاسية: اكتب التصريفات مع ضمير الانعكاس كاملًا
+4. استثناء مهم لزمن passato_prossimo:
+   - يُكتب كلمة واحدة فقط (اسم المفعول / participio passato) وليس 6 تصريفات،
+     لأنه ثابت مع جميع الضمائر. مثال: "parlato"، "fatto"، "andato".
+   - الأفعال الانعكاسية: احذف الضمير الانعكاسي (مثال lavarsi ← "lavato").
+
+5. للأفعال الانعكاسية في باقي الأزمنة: اكتب التصريفات مع ضمير الانعكاس كاملًا
    (مثال: mi lavo، ti lavi، si lava، ci laviamo، vi lavate، si lavano).
 
-5. أخرج النتيجة حصراً بصيغة JSON بدون أي شرح خارجي:
+6. أخرج النتيجة حصراً بصيغة JSON بدون أي شرح خارجي:
 
 {
   "verbs": [
@@ -711,6 +763,49 @@ ${tenseLines.join('\n')}
      ========================================================= */
   function stripCodeFences(text) {
     return String(text).replace(/^\s*```json\s*/i, '').replace(/^\s*```\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  }
+
+  /**
+   * Parse a single tense value.
+   * - For single-form tenses (passato_prossimo): accept string OR object whose non-empty values are all equal.
+   * - For normal tenses: require object with all 6 pronouns.
+   * Returns { forms } or { error }
+   */
+  function parseTenseValue(tk, rawVal) {
+    const t = TENSES[tk];
+
+    if (t && t.singleForm) {
+      // 1) String / number → single word
+      if (typeof rawVal === 'string' || typeof rawVal === 'number') {
+        const single = String(rawVal).trim();
+        if (!single) return { error: 'فارغ' };
+        const forms = {};
+        PRONOUNS.forEach(p => forms[p] = single);
+        return { forms };
+      }
+      // 2) Object → if all non-empty values are identical → treat as single
+      if (rawVal && typeof rawVal === 'object') {
+        const nonEmpty = PRONOUNS.map(p => String(rawVal[p] || '').trim()).filter(Boolean);
+        const unique = Array.from(new Set(nonEmpty));
+        if (unique.length === 1) {
+          const single = unique[0];
+          const forms = {};
+          PRONOUNS.forEach(p => forms[p] = single);
+          return { forms };
+        }
+      }
+      // Fall through → standard parsing (allows legacy 6-form objects)
+    }
+
+    // Standard: require object with 6 pronouns
+    const rawForms = rawVal || {};
+    const forms = {};
+    for (const p of PRONOUNS) {
+      const form = String(rawForms[p] || '').trim();
+      if (!form) return { error: `ينقص "${p}"` };
+      forms[p] = form;
+    }
+    return { forms };
   }
 
   function parseVerbJSON(raw) {
@@ -756,20 +851,15 @@ ${tenseLines.join('\n')}
 
       for (const tk of TENSE_ORDER) {
         if (!rawTenses[tk]) continue;
-        const rawForms = rawTenses[tk] || {};
-        const forms = {};
-        for (const p of PRONOUNS) {
-          const form = String(rawForms[p] || '').trim();
-          if (!form) {
-            errors.push(`"${infinitive}" — ${TENSES[tk].label}: ينقص "${p}"`);
-            hasError = true;
-            break;
-          }
-          forms[p] = form;
+        const res = parseTenseValue(tk, rawTenses[tk]);
+        if (res.error) {
+          errors.push(`"${infinitive}" — ${TENSES[tk].label}: ${res.error}`);
+          hasError = true;
+          break;
         }
-        if (hasError) return;
-        tenses[tk] = forms;
+        tenses[tk] = res.forms;
       }
+      if (hasError) return;
 
       if (!tenses.presente) {
         errors.push(`"${infinitive}": المضارع ناقص`);
@@ -957,6 +1047,21 @@ ${tenseLines.join('\n')}
     }
   }
 
+  function renderTenseBody(tk, forms) {
+    const isSingle = TENSES[tk].singleForm && isUniformForms(forms);
+    if (isSingle) {
+      return `<div class="conj-single-display" dir="ltr">${escapeHtml(forms.io || '')}</div>`;
+    }
+    return `<div class="conj-table-mini">
+      ${PRONOUNS.map(p => `
+        <div class="conj-row-mini">
+          <span class="pron">${p}</span>
+          <span class="form" dir="ltr">${escapeHtml((forms && forms[p]) || '')}</span>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+
   function renderNewVerbCard(v, i) {
     const tensesList = TENSE_ORDER.filter(tk => v.tenses[tk]);
     return `
@@ -971,14 +1076,7 @@ ${tenseLines.join('\n')}
           ${tensesList.map(tk => `
             <details>
               <summary>${TENSES[tk].label}<span class="tense-badge-small">${TENSES[tk].nameIt}</span></summary>
-              <div class="conj-table-mini">
-                ${PRONOUNS.map(p => `
-                  <div class="conj-row-mini">
-                    <span class="pron">${p}</span>
-                    <span class="form" dir="ltr">${escapeHtml(v.tenses[tk][p])}</span>
-                  </div>
-                `).join('')}
-              </div>
+              ${renderTenseBody(tk, v.tenses[tk])}
             </details>
           `).join('')}
         </div>
@@ -1049,7 +1147,6 @@ ${tenseLines.join('\n')}
         const c = p._collisions[idx];
         if (!c) return;
         c.action = action;
-        // Re-render just this card
         const card = btn.closest('.collision-card');
         card.outerHTML = renderCollisionCard(c, idx);
         bindCollisionEvents(p);
@@ -1108,7 +1205,6 @@ ${tenseLines.join('\n')}
       const col = verbsCol();
       const now = Date.now();
 
-      // Build flat ops list
       const ops = [];
       newVerbs.forEach(nv => ops.push({ type: 'new', verb: nv.verb }));
       effectiveCollisions.forEach(c => ops.push({ type: 'collision', collision: c }));
@@ -1204,7 +1300,6 @@ ${tenseLines.join('\n')}
     });
     return {
       tenses: merged,
-      // Only fill meaning if missing on existing
       ...(c.existing.meaning_ar ? {} : { meaning_ar: c.incoming.meaning_ar || '' }),
       updated_at: now
     };
@@ -1236,22 +1331,45 @@ ${tenseLines.join('\n')}
       el.className = 'tense-editor' + (enabled ? ' enabled' : '');
       el.dataset.tense = tk;
 
-      const rows = PRONOUNS.map(p => {
-        const val = existing ? (existing[p] || '') : '';
-        return `<div class="conj-edit-row">
-          <span class="pronoun">${p}</span>
-          <input type="text" class="form-input ltr conj-edit-input" data-pronoun="${p}" dir="ltr" value="${escapeHtml(val)}" autocomplete="off" autocapitalize="off" spellcheck="false" />
-        </div>`;
-      }).join('');
+      let bodyInner;
+      if (t.singleForm) {
+        // ===== Single-form tense (passato_prossimo) =====
+        const obj = existing || {};
+        const uniform = isUniformForms(obj);
+        const val = uniform ? obj.io : (obj.io || '');
+        const showHint = !uniform && !!val;
+        bodyInner = `
+          <div class="conj-single-row">
+            <span class="conj-single-label">📝 التصريف (نفسه مع جميع الضمائر)</span>
+            <input type="text" class="form-input ltr conj-single-input" dir="ltr"
+              value="${escapeHtml(val)}" autocomplete="off" autocapitalize="off" spellcheck="false"
+              placeholder="parlato" />
+          </div>
+          ${showHint ? '<div class="conj-uniform-hint">⚠️ التصريفات المحفوظة حالياً مختلفة — عند الحفظ ستُوحَّد في كلمة واحدة.</div>' : ''}
+        `;
+      } else {
+        // ===== Normal tense: 6 pronouns =====
+        bodyInner = PRONOUNS.map(p => {
+          const val = existing ? (existing[p] || '') : '';
+          return `<div class="conj-edit-row">
+            <span class="pronoun">${p}</span>
+            <input type="text" class="form-input ltr conj-edit-input" data-pronoun="${p}" dir="ltr" value="${escapeHtml(val)}" autocomplete="off" autocapitalize="off" spellcheck="false" />
+          </div>`;
+        }).join('');
+      }
+
+      const labelSuffix = t.singleForm
+        ? ' <span style="font-size:10.5px;color:var(--text-soft);font-weight:600;">(كلمة واحدة)</span>'
+        : '';
 
       el.innerHTML = `
         <label class="tense-editor-header">
           <input type="checkbox" class="tense-toggle" ${enabled ? 'checked' : ''} ${t.required ? 'disabled' : ''} />
-          <span class="tense-editor-label">${t.label}</span>
+          <span class="tense-editor-label">${t.label}${labelSuffix}</span>
           ${t.required ? '<span class="required-badge">مطلوب</span>' : ''}
           <span class="tense-badge-small">${t.nameIt}</span>
         </label>
-        <div class="tense-editor-body" ${enabled ? '' : 'hidden'}>${rows}</div>
+        <div class="tense-editor-body" ${enabled ? '' : 'hidden'}>${bodyInner}</div>
       `;
 
       container.appendChild(el);
@@ -1302,6 +1420,16 @@ ${tenseLines.join('\n')}
       const tk = ed.dataset.tense;
       const toggle = ed.querySelector('.tense-toggle');
       if (!toggle.checked) continue;
+
+      if (TENSES[tk].singleForm) {
+        const single = (ed.querySelector('.conj-single-input')?.value || '').trim();
+        if (!single) { toast(`أدخل تصريف ${TENSES[tk].label}`, 'err'); return; }
+        const forms = {};
+        PRONOUNS.forEach(p => forms[p] = single);
+        tenses[tk] = forms;
+        continue;
+      }
+
       const forms = {};
       let complete = true;
       ed.querySelectorAll('.conj-edit-input').forEach(inp => {
@@ -1494,14 +1622,15 @@ ${tenseLines.join('\n')}
         is_reflexive: false,
         tenses: {
           presente: { io: "parlo", tu: "parli", lui: "parla", noi: "parliamo", voi: "parlate", loro: "parlano" },
-          passato_prossimo: { io: "ho parlato", tu: "hai parlato", lui: "ha parlato", noi: "abbiamo parlato", voi: "avete parlato", loro: "hanno parlato" }
+          passato_prossimo: "parlato"
         }
       }, {
         infinitive: "lavarsi",
         meaning_ar: "يغسل نفسه",
         is_reflexive: true,
         tenses: {
-          presente: { io: "mi lavo", tu: "ti lavi", lui: "si lava", noi: "ci laviamo", voi: "vi lavate", loro: "si lavano" }
+          presente: { io: "mi lavo", tu: "ti lavi", lui: "si lava", noi: "ci laviamo", voi: "vi lavate", loro: "si lavano" },
+          passato_prossimo: "lavato"
         }
       }]
     }, null, 2);
